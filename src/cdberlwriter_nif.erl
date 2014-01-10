@@ -43,7 +43,7 @@ finish(_Ref) ->
 -ifdef(TEST).
 
 basic_test() ->
-    {ok, Ref} = new(<<"/Users/vukasin/cdberl/test.cdb">>),
+    {ok, Ref} = new(<<"test.cdb">>),
     ?assertEqual(ok, add(Ref, <<"greeting">>, <<"hello">>)),
     ?assertEqual(ok, add(Ref, <<"greeting">>, <<"world">>)),
     ?assertEqual(ok, finish(Ref)), 

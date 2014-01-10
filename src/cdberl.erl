@@ -40,7 +40,7 @@ finish(Ref) ->
 -ifdef(TEST).
 
 basic_test() ->
-    Path = <<"text.cdb">>,
+    Path = <<"test.cdb">>,
     {ok, Ref} = writer(Path),
     ?assertEqual(ok, add(Ref, <<"greeting">>, <<"hello">>)),
     ?assertEqual(ok, add(Ref, <<"greeting">>, <<"world">>)),

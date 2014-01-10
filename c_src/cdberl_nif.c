@@ -6,10 +6,15 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "debug.h"
+
+
+
 static ErlNifResourceType* cdbnif_RESOURCE = NULL;
 typedef struct
 {
     int fd;
+    char *key;
     struct cdb cdb;
     struct cdb_find cdbf; 
 } cdbnif_handle;
@@ -42,7 +47,6 @@ static ERL_NIF_TERM cdbnif_close(ErlNifEnv* env, int argc,
                               const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM cdbnif_seek(ErlNifEnv* env, int argc,
                              const ERL_NIF_TERM argv[]);
-
 static ErlNifFunc nif_funcs[] =
 {
     {"new", 1, cdbnif_new},
@@ -51,21 +55,24 @@ static ErlNifFunc nif_funcs[] =
     {"seek", 2, cdbnif_seek}
 };
 
+
+
 static ERL_NIF_TERM cdbnif_new(ErlNifEnv* env, int argc,
                                  const ERL_NIF_TERM argv[])
 {
     char * path = get_str(env, argv[0], NULL);
     if(path==NULL)
-        return enif_make_atom(env, "open_error");
+        return enif_make_atom(env, "invalid_path");
     cdbnif_handle* handle = enif_alloc_resource(cdbnif_RESOURCE,
                                                 sizeof(cdbnif_handle));
+    handle->key = NULL;
     ERL_NIF_TERM result = enif_make_resource(env, handle);
-    enif_release_resource(handle);
     handle->fd = open(path, O_RDONLY);
+    enif_release_resource(handle);
     free(path);
     if(handle->fd <0)
         return enif_make_atom(env, "open_error");
-    if(cdb_init(&(handle->cdb), handle->fd) < 0 )
+    if(cdb_init(&(handle->cdb), handle->fd) != 0 )
         return enif_make_atom(env, "invalid_file");
     return enif_make_tuple2(env, enif_make_atom(env, "ok"), result);
 }
@@ -79,12 +86,15 @@ static ERL_NIF_TERM cdbnif_seek(ErlNifEnv* env, int argc,
 
     int key_len;
     char * key = get_str(env, argv[1], &key_len);
+    
     if(!key)
         return enif_make_atom(env, "invalid_key");
-    int fres = cdb_findinit(&(handle->cdbf), &(handle->cdb), key, key_len);
-    free(key);
+    if(handle->key)
+        free(handle->key);
+    handle->key = key;
+    int fres = cdb_findinit(&(handle->cdbf), &(handle->cdb), handle->key, key_len);
+    //hexDump("cdbf seeked", &(handle->cdbf), sizeof(struct cdb_find));
     if(fres<0) {
-        printf("failed seek %i\n", fres);
         return enif_make_atom(env, "failed_seek");
     }
     return enif_make_atom(env, "ok");
@@ -95,11 +105,12 @@ static ERL_NIF_TERM cdbnif_next(ErlNifEnv* env, int argc,
 {
     unsigned vpos, vlen;
     void * data;
+    int nres;
     ERL_NIF_TERM res;
     cdbnif_handle* handle = get_handle(env, argv[0]);
     if(!handle)
         return enif_make_atom(env, "invalid_handle");
-    if(cdb_findnext(&(handle->cdbf))>0) {
+    if((nres=cdb_findnext(&(handle->cdbf)))>0) {
         vpos = cdb_datapos(&(handle->cdb));
         vlen = cdb_datalen(&(handle->cdb));
         data = enif_make_new_binary(env, vlen, &res);
@@ -126,6 +137,10 @@ static void cdbnif_resource_cleanup(ErlNifEnv* env, void* arg)
 {
     /* Delete any dynamically allocated memory stored in cdbnif_handle */
     cdbnif_handle* handle = (cdbnif_handle*)arg; 
+    if(handle->key) {
+        free(handle->key);
+        handle->key = NULL;
+    }
     close(handle->fd);
 }
 
