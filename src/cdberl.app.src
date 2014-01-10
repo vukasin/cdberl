@@ -1,0 +1,11 @@
+{application, cdberl,
+ [
+  {description, "Erlang interface to CDB using TinyCDB"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
