@@ -104,17 +104,18 @@ static ERL_NIF_TERM cdbnif_next(ErlNifEnv* env, int argc,
                                 const ERL_NIF_TERM argv[])
 {
     unsigned vpos, vlen;
-    ErlNifBinary data;
+    void * data;
     int nres;
+    ERL_NIF_TERM res;
     cdbnif_handle* handle = get_handle(env, argv[0]);
     if(!handle)
         return enif_make_atom(env, "invalid_handle");
     if((nres=cdb_findnext(&(handle->cdbf)))>0) {
         vpos = cdb_datapos(&(handle->cdb));
         vlen = cdb_datalen(&(handle->cdb));
-        enif_alloc_binary(vlen, &data);
-        cdb_read(&(handle->cdb), data.data, vlen, vpos);
-        return enif_make_tuple2(env, enif_make_atom(env, "ok"), enif_make_binary(env, &data));
+        data = enif_make_new_binary(env, vlen, &res);
+        cdb_read(&(handle->cdb), data, vlen, vpos);
+        return enif_make_tuple2(env, enif_make_atom(env, "ok"), res);
     } else {
         return enif_make_atom(env, "eof");
     }
